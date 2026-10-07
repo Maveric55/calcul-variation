@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f5fbf">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Calcul de variation</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+/* Layout : une seule colonne étroite, saisie en haut, résultat en carte dessous */
+:root {
+  --bg: #f3f5f8;
+  --surface: #ffffff;
+  --fg: #172033;
+  --muted: #5d6b82;
+  --line: #d9dfe8;
+  --accent: #1f5fbf;
+  --accent-fg: #ffffff;
+  --up: #157a4a;
+  --up-bg: #e3f4ea;
+  --down: #b3302b;
+  --down-bg: #fbe7e5;
+  --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141d; --surface: #171e2a; --fg: #e7ecf4; --muted: #94a1b6; --line: #2a3446;
+    --accent: #5b96ee; --accent-fg: #0b1220;
+    --up: #5fd197; --up-bg: #133325; --down: #f2847d; --down-bg: #3a1a19;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141d; --surface: #171e2a; --fg: #e7ecf4; --muted: #94a1b6; --line: #2a3446;
+  --accent: #5b96ee; --accent-fg: #0b1220;
+  --up: #5fd197; --up-bg: #133325; --down: #f2847d; --down-bg: #3a1a19;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { padding-top: max(28px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 16px; }
+main { max-width: 440px; margin: 0 auto; padding: 28px 16px 40px; display: flex; flex-direction: column; gap: 20px; }
+h1 { margin: 0; font-size: 1.5rem; font-weight: 700; text-wrap: balance; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: .95rem; }
+
+.fields { display: flex; flex-direction: column; gap: 10px; }
+label { display: block; font-size: .78rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; }
+.input-wrap { position: relative; }
+.input-wrap input {
+  width: 100%; font: 600 1.4rem var(--font-num); font-variant-numeric: tabular-nums;
+  padding: 14px 44px 14px 16px; border: 1.5px solid var(--line); border-radius: 12px;
+  background: var(--surface); color: var(--fg); outline: none;
+}
+.input-wrap input:focus { border-color: var(--accent); }
+.input-wrap span { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font: 600 1.2rem var(--font-num); pointer-events: none; }
+
+.swap-row { display: flex; justify-content: center; }
+.swap {
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--muted);
+  border-radius: 999px; padding: 6px 14px; font: 500 .85rem var(--font-ui); cursor: pointer;
+}
+.swap:focus-visible, .go:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.go {
+  width: 100%; border: 0; border-radius: 12px; padding: 16px; cursor: pointer;
+  background: var(--accent); color: var(--accent-fg); font: 700 1.1rem var(--font-ui);
+}
+.go:active { transform: scale(.99); }
+
+.result { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.badge { align-self: flex-start; font-size: .8rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--line); color: var(--muted); }
+.result.up .badge { background: var(--up-bg); color: var(--up); }
+.result.down .badge { background: var(--down-bg); color: var(--down); }
+.pct { font: 600 2.6rem/1.1 var(--font-num); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.result.up .pct { color: var(--up); }
+.result.down .pct { color: var(--down); }
+.details { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; margin: 0; padding-top: 14px; border-top: 1px solid var(--line); font-size: .95rem; }
+.details dt { color: var(--muted); }
+.details dd { margin: 0; text-align: right; font: 500 .95rem var(--font-num); font-variant-numeric: tabular-nums; }
+.phrase { margin: 0; color: var(--muted); font-size: .92rem; line-height: 1.45; }
+.error { color: var(--down); font-weight: 600; margin: 0; }
+@media (prefers-reduced-motion: reduce) { .go:active { transform: none; } }
+</style>
+
+</head>
+<body>
+<main>
+  <header>
+    <h1>Calcul de variation</h1>
+    <p class="sub">Pourcentage d'évolution entre deux montants.</p>
+  </header>
+
+  <form id="form" class="fields" novalidate>
+    <div>
+      <label for="a">Montant de départ</label>
+      <div class="input-wrap"><input id="a" inputmode="decimal" autocomplete="off" value="1 250"><span>€</span></div>
+    </div>
+    <div class="swap-row"><button type="button" class="swap" id="swap">⇅ Inverser</button></div>
+    <div>
+      <label for="b">Montant d'arrivée</label>
+      <div class="input-wrap"><input id="b" inputmode="decimal" autocomplete="off" value="1 400"><span>€</span></div>
+    </div>
+    <button type="submit" class="go" id="go">Calculer</button>
+  </form>
+
+  <section class="result" id="result" aria-live="polite"></section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const parse = s => {
+  const t = String(s).replace(/[\s  €]/g, "").replace(",", ".");
+  if (t === "" || !/^-?\d*\.?\d+$/.test(t)) return NaN;
+  return parseFloat(t);
+};
+const eur = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+const num = (n, d = 2) => n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function calc() {
+  const a = parse($("a").value), b = parse($("b").value), r = $("result");
+  r.className = "result";
+  if (isNaN(a) || isNaN(b)) { r.innerHTML = '<p class="error">Saisis deux montants valides (ex. 1 250,50).</p>'; return; }
+  if (a === 0) { r.innerHTML = '<p class="error">Le montant de départ ne peut pas être 0 : aucun pourcentage n\'est calculable à partir de zéro.</p>'; return; }
+  const diff = b - a, pct = diff / Math.abs(a) * 100, coef = b / a;
+  const kind = pct > 0 ? "up" : pct < 0 ? "down" : "flat";
+  if (kind !== "flat") r.classList.add(kind);
+  const label = { up: "Augmentation", down: "Diminution", flat: "Aucune variation" }[kind];
+  const sign = pct > 0 ? "+" : pct < 0 ? "−" : "";
+  const phrase = kind === "flat"
+    ? "Les deux montants sont identiques."
+    : `Pour passer de ${eur(a)} à ${eur(b)}, il faut ${kind === "up" ? "augmenter" : "baisser"} de ${num(Math.abs(pct))} %.`;
+  r.innerHTML = `
+    <span class="badge">${label}</span>
+    <div class="pct">${sign}${num(Math.abs(pct))} %</div>
+    <p class="phrase">${phrase}</p>
+    <dl class="details">
+      <dt>Écart en euros</dt><dd>${diff > 0 ? "+" : diff < 0 ? "−" : ""}${eur(Math.abs(diff))}</dd>
+      <dt>Coefficient multiplicateur</dt><dd>× ${num(coef, 4)}</dd>
+    </dl>`;
+}
+
+$("form").addEventListener("submit", e => { e.preventDefault(); document.activeElement.blur(); calc(); });
+$("swap").addEventListener("click", () => { const v = $("a").value; $("a").value = $("b").value; $("b").value = v; calc(); });
+calc();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
