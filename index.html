@@ -85,6 +85,15 @@ label { display: block; font-size: .78rem; font-weight: 600; text-transform: upp
 .details dt { color: var(--muted); }
 .details dd { margin: 0; text-align: right; font: 500 .95rem var(--font-num); font-variant-numeric: tabular-nums; }
 .phrase { margin: 0; color: var(--muted); font-size: .92rem; line-height: 1.45; }
+.livret { border: 1.5px solid var(--line); border-radius: 12px; background: var(--surface); padding: 0 16px; }
+.livret summary { padding: 14px 0; cursor: pointer; font-weight: 600; }
+.livret[open] summary { border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+.livret-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.livret-fields .input-wrap input { font-size: 1.15rem; padding: 12px 52px 12px 12px; }
+.livret-fields .input-wrap span { font-size: 1rem; right: 10px; }
+.hint { margin: 12px 0 16px; color: var(--muted); font-size: .85rem; line-height: 1.4; }
+.compare { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+.compare h2 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .error { color: var(--down); font-weight: 600; margin: 0; }
 @media (prefers-reduced-motion: reduce) { .go:active { transform: none; } }
 </style>
@@ -107,6 +116,20 @@ label { display: block; font-size: .78rem; font-weight: 600; text-transform: upp
       <label for="b">Montant d'arrivée</label>
       <div class="input-wrap"><input id="b" inputmode="decimal" autocomplete="off" placeholder="0"><span>€</span></div>
     </div>
+    <details class="livret">
+      <summary>Comparer avec un Livret A</summary>
+      <div class="livret-fields">
+        <div>
+          <label for="m">Durée</label>
+          <div class="input-wrap"><input id="m" inputmode="numeric" autocomplete="off" placeholder="12"><span>mois</span></div>
+        </div>
+        <div>
+          <label for="t">Taux annuel</label>
+          <div class="input-wrap"><input id="t" inputmode="decimal" autocomplete="off" value="1,7"><span>%</span></div>
+        </div>
+      </div>
+      <p class="hint">Taux du Livret A depuis le 1er août 2026. Intérêts calculés et ajoutés une fois par an.</p>
+    </details>
     <button type="submit" class="go" id="go">Calculer</button>
   </form>
 
@@ -122,6 +145,26 @@ const parse = s => {
 };
 const eur = n => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 const num = (n, d = 2) => n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+
+function livretBlock(a, b) {
+  const mTxt = $("m").value.trim();
+  if (mTxt === "") return "";
+  const months = parse(mTxt), rate = parse($("t").value);
+  if (isNaN(months) || months <= 0 || isNaN(rate) || rate < 0) return '<p class="error">Durée ou taux invalide pour le Livret A.</p>';
+  const t = rate / 100, y = Math.floor(months / 12), rest = months - y * 12;
+  const end = a * Math.pow(1 + t, y) * (1 + t * rest / 12);
+  const gain = end - a, diff = b - end;
+  const sg = n => (n > 0 ? "+" : n < 0 ? "−" : "") + eur(Math.abs(n));
+  const dur = y > 0 ? `${y} an${y > 1 ? "s" : ""}${rest ? " " + num(rest, 0) + " mois" : ""}` : `${num(months, 0)} mois`;
+  const verdict = Math.abs(diff) < 0.005 ? "Même résultat que ton montant d'arrivée."
+    : diff > 0 ? `Ton montant d'arrivée dépasse le Livret A de ${eur(diff)}.` : `Le Livret A aurait donné ${eur(-diff)} de plus.`;
+  return `<div class="compare"><h2>Si ${eur(a)} étaient restés sur un Livret A</h2>
+    <dl class="details">
+      <dt>Après ${dur} à ${num(rate)} %</dt><dd>${eur(end)}</dd>
+      <dt>Intérêts</dt><dd>${sg(gain)}</dd>
+      <dt>Variation</dt><dd>${sg(gain / a * 100).replace("€", "").trim()} %</dd>
+    </dl><p class="phrase">${verdict}</p></div>`;
+}
 
 function calc() {
   const a = parse($("a").value), b = parse($("b").value), r = $("result");
@@ -145,7 +188,7 @@ function calc() {
     <dl class="details">
       <dt>Écart en euros</dt><dd>${diff > 0 ? "+" : diff < 0 ? "−" : ""}${eur(Math.abs(diff))}</dd>
       <dt>Coefficient multiplicateur</dt><dd>× ${num(coef, 4)}</dd>
-    </dl>`;
+    </dl>` + livretBlock(a, b);
 }
 
 $("form").addEventListener("submit", e => { e.preventDefault(); document.activeElement.blur(); calc(); });
