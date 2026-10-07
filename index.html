@@ -43,6 +43,7 @@
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
+[hidden] { display: none !important; }
 main { padding-top: max(28px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); }
 body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 16px; }
 main { max-width: 440px; margin: 0 auto; padding: 28px 16px 40px; display: flex; flex-direction: column; gap: 20px; }
@@ -99,12 +100,12 @@ label { display: block; font-size: .78rem; font-weight: 600; text-transform: upp
   <form id="form" class="fields" novalidate>
     <div>
       <label for="a">Montant de départ</label>
-      <div class="input-wrap"><input id="a" inputmode="decimal" autocomplete="off" value="1 250"><span>€</span></div>
+      <div class="input-wrap"><input id="a" inputmode="decimal" autocomplete="off" placeholder="0"><span>€</span></div>
     </div>
     <div class="swap-row"><button type="button" class="swap" id="swap">⇅ Inverser</button></div>
     <div>
       <label for="b">Montant d'arrivée</label>
-      <div class="input-wrap"><input id="b" inputmode="decimal" autocomplete="off" value="1 400"><span>€</span></div>
+      <div class="input-wrap"><input id="b" inputmode="decimal" autocomplete="off" placeholder="0"><span>€</span></div>
     </div>
     <button type="submit" class="go" id="go">Calculer</button>
   </form>
@@ -125,6 +126,8 @@ const num = (n, d = 2) => n.toLocaleString("fr-FR", { minimumFractionDigits: d, 
 function calc() {
   const a = parse($("a").value), b = parse($("b").value), r = $("result");
   r.className = "result";
+  if ($("a").value.trim() === "" && $("b").value.trim() === "") { r.innerHTML = ""; r.hidden = true; return; }
+  r.hidden = false;
   if (isNaN(a) || isNaN(b)) { r.innerHTML = '<p class="error">Saisis deux montants valides (ex. 1 250,50).</p>'; return; }
   if (a === 0) { r.innerHTML = '<p class="error">Le montant de départ ne peut pas être 0 : aucun pourcentage n\'est calculable à partir de zéro.</p>'; return; }
   const diff = b - a, pct = diff / Math.abs(a) * 100, coef = b / a;
@@ -147,7 +150,7 @@ function calc() {
 
 $("form").addEventListener("submit", e => { e.preventDefault(); document.activeElement.blur(); calc(); });
 $("swap").addEventListener("click", () => { const v = $("a").value; $("a").value = $("b").value; $("b").value = v; calc(); });
-calc();
+r0 = $("result"); r0.hidden = true;
 </script>
 
 <script>
